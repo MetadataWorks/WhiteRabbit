@@ -107,6 +107,8 @@ public class DBConnection {
                 execute("ALTER SESSION SET current_schema = " + database);
             } else if (dbType == DbType.POSTGRESQL || dbType == DbType.REDSHIFT) {
                 execute("SET search_path TO " + database);
+            } else if(dbType == DbType.MYSQL) {
+                execute("USE `" + database + "`");
             } else if (dbType == DbType.TERADATA) {
                 execute("database " + database);
             } else {
@@ -282,7 +284,7 @@ public class DBConnection {
             if (dbType == DbType.SQL_SERVER || dbType == DbType.AZURE)
                 query = "SELECT * FROM [" + table.replaceAll("\\.", "].[") + "] TABLESAMPLE (" + sampleSize + " ROWS)";
             else if (dbType == DbType.MYSQL)
-                query = "SELECT * FROM " + table + " ORDER BY RAND() LIMIT " + sampleSize;
+                query = "SELECT * FROM `" + table + "` ORDER BY RAND() LIMIT " + sampleSize;
             else if (dbType == DbType.PDW)
                 query = "SELECT TOP " + sampleSize + " * FROM [" + table.replaceAll("\\.", "].[") + "] ORDER BY RAND()";
             else if (dbType == DbType.ORACLE) {
@@ -317,7 +319,7 @@ public class DBConnection {
         List<String> names = new ArrayList<>();
         String query = null;
         if (dbType == DbType.MYSQL) {
-            query = "SHOW TABLES IN " + database;
+            query = "SHOW TABLES IN `" + database + "`";
         } else if (dbType == DbType.SQL_SERVER || dbType == DbType.PDW || dbType == DbType.AZURE) {
             query = "SELECT CONCAT(schemas.name, '.', tables_views.name) FROM " +
                     "(SELECT schema_id, name FROM %1$s.sys.tables UNION ALL SELECT schema_id, name FROM %1$s.sys.views) tables_views " +
