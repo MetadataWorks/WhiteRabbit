@@ -104,6 +104,8 @@ public class RichConnection implements Closeable {
 			qr = query("SELECT COUNT_BIG(*) FROM [" + tableName.replaceAll("\\.", "].[") + "];");
 		else if (dbType == DbType.MS_ACCESS)
 			qr = query("SELECT COUNT(*) FROM [" + tableName + "];");
+		else if (dbType == DbType.MYSQL)
+			qr = query("SELECT COUNT(*) FROM `" + tableName + "`;");
 		else
 			qr = query("SELECT COUNT(*) FROM " + tableName + ";");
 		try {
