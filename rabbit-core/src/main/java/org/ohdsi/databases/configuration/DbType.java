@@ -1,14 +1,14 @@
 /*******************************************************************************
  * Copyright 2023 Observational Health Data Sciences and Informatics & The Hyve
- * 
+ *
  * This file is part of WhiteRabbit
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,6 +33,7 @@ public enum DbType {
 	 */
 	DELIMITED_TEXT_FILES("Delimited text files", null),
 	MYSQL("MySQL", "com.mysql.cj.jdbc.Driver"),
+	AZURE_SYNAPSE("Azure Synapse", "com.microsoft.sqlserver.jdbc.SQLServerDriver"),
 	ORACLE("Oracle", "oracle.jdbc.driver.OracleDriver"),
 	SQL_SERVER("SQL Server", "com.microsoft.sqlserver.jdbc.SQLServerDriver"),
 	POSTGRESQL("PostgreSQL", "org.postgresql.Driver"),
@@ -102,7 +103,7 @@ public enum DbType {
 	 * @return Array of labels for the supported database, intended for use in a selector (like a Swing JComboBox)
 	 */
 	public static String[] pickList() {
-		return Stream.of(DELIMITED_TEXT_FILES, SAS7BDAT, MYSQL, ORACLE, SQL_SERVER, POSTGRESQL, MS_ACCESS, PDW, REDSHIFT, TERADATA, BIGQUERY, AZURE, SNOWFLAKE)
+		return Stream.of(DELIMITED_TEXT_FILES, SAS7BDAT, MYSQL, ORACLE, SQL_SERVER, POSTGRESQL, MS_ACCESS, PDW, REDSHIFT, TERADATA, BIGQUERY, AZURE, SNOWFLAKE, AZURE_SYNAPSE)
 				.map(DbType::label).toArray(String[]::new);
 	}
 

@@ -102,17 +102,28 @@ public class DBConnection {
             if (database == null || dbType == DbType.MS_ACCESS || dbType == DbType.BIGQUERY || dbType == DbType.AZURE) {
                 return;
             }
-
-            if (dbType == DbType.ORACLE) {
-                execute("ALTER SESSION SET current_schema = " + database);
-            } else if (dbType == DbType.POSTGRESQL || dbType == DbType.REDSHIFT) {
-                execute("SET search_path TO " + database);
-            } else if(dbType == DbType.MYSQL) {
-                execute("USE `" + database + "`");
-            } else if (dbType == DbType.TERADATA) {
-                execute("database " + database);
-            } else {
-                execute("USE " + database);
+            switch (dbType) {
+                case MS_ACCESS:
+                case BIGQUERY:
+                case AZURE:
+                case AZURE_SYNAPSE:
+                    break;
+                case ORACLE:
+                    execute("ALTER SESSION SET current_schema = " + database);
+                    break;
+                case POSTGRESQL:
+                case REDSHIFT:
+                    execute("SET search_path TO " + database);
+                    break;
+                case TERADATA:
+                    execute("database " + database);
+                    break;
+                case MYSQL:
+                    execute("USE `" + database + "`");
+                    break;
+                default:
+                    execute("USE " + database);
+                    break;
             }
         }
     }
@@ -204,30 +215,56 @@ public class DBConnection {
             }
         } else {
             String query = null;
-            if (dbType == DbType.ORACLE)
-                query = "SELECT COLUMN_NAME,DATA_TYPE FROM ALL_TAB_COLUMNS WHERE table_name = '" + table + "' AND owner = '" + database.toUpperCase() + "'";
-            else if (dbType == DbType.SQL_SERVER || dbType == DbType.PDW) {
-                String trimmedDatabase = database;
-                if (database.startsWith("[") && database.endsWith("]"))
-                    trimmedDatabase = database.substring(1, database.length() - 1);
-                String[] parts = table.split("\\.");
-                query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_CATALOG='" + trimmedDatabase + "' AND TABLE_SCHEMA='" + parts[0] +
-                        "' AND TABLE_NAME='" + parts[1] + "';";
-            } else if (dbType == DbType.AZURE) {
-                String[] parts = table.split("\\.");
-                query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='" + parts[0] +
-                        "' AND TABLE_NAME='" + parts[1] + "';";
-            } else if (dbType == DbType.MYSQL)
-                query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + database + "' AND TABLE_NAME = '" + table
-                        + "';";
-            else if (dbType == DbType.POSTGRESQL || dbType == DbType.REDSHIFT)
-                query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + database.toLowerCase() + "' AND TABLE_NAME = '"
-                        + table.toLowerCase() + "' ORDER BY ordinal_position;";
-            else if (dbType == DbType.TERADATA) {
-                query = "SELECT ColumnName, ColumnType FROM dbc.columns WHERE DatabaseName= '" + database.toLowerCase() + "' AND TableName = '"
-                        + table.toLowerCase() + "';";
-            } else if (dbType == DbType.BIGQUERY) {
-                query = "SELECT column_name AS COLUMN_NAME, data_type as DATA_TYPE FROM " + database + ".INFORMATION_SCHEMA.COLUMNS WHERE table_name = \"" + table + "\";";
+            switch (dbType) {
+                case ORACLE:
+                    query = "SELECT COLUMN_NAME,DATA_TYPE FROM ALL_TAB_COLUMNS WHERE table_name = '"
+                            + table + "' AND owner = '" + database.toUpperCase() + "'";
+                    break;
+                case SQL_SERVER:
+                case PDW:
+                    String trimmedDatabase = database;
+                    if (database.startsWith("[") && database.endsWith("]"))
+                        trimmedDatabase = database.substring(1, database.length() - 1);
+                    String[] parts = table.split("\\.");
+                    query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_CATALOG='"
+                            + trimmedDatabase + "' AND TABLE_SCHEMA='" + parts[0] +
+                            "' AND TABLE_NAME='" + parts[1] + "';";
+                    break;
+                case AZURE:
+                    String[] parts2 = table.split("\\.");
+                    query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='" + parts2[0] +
+                            "' AND TABLE_NAME='" + parts2[1] + "';";
+                    break;
+                case AZURE_SYNAPSE:
+                    String[] parts3 = table.split("\\.");
+                    if (parts3.length != 2) {
+                        throw new IllegalArgumentException("Table name must be in the format schema.table");
+                    }
+                    query = "SELECT COLUMN_NAME, DATA_TYPE " +
+                            "FROM " + database + ".INFORMATION_SCHEMA.COLUMNS " +
+                            "WHERE TABLE_SCHEMA = '" + parts3[0] + "' " +
+                            "AND TABLE_NAME = '" + parts3[1] + "';";
+                    break;
+                case MYSQL:
+                    query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '"
+                            + database + "' AND TABLE_NAME = '" + table
+                            + "';";
+                    break;
+                case POSTGRESQL:
+                case REDSHIFT:
+                    query = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '"
+                            + database.toLowerCase() + "' AND TABLE_NAME = '"
+                            + table.toLowerCase() + "' ORDER BY ordinal_position;";
+                    break;
+                case TERADATA:
+                    query = "SELECT ColumnName, ColumnType FROM dbc.columns WHERE DatabaseName= '"
+                            + database.toLowerCase() + "' AND TableName = '"
+                            + table.toLowerCase() + "';";
+                    break;
+                case BIGQUERY:
+                    query = "SELECT column_name AS COLUMN_NAME, data_type as DATA_TYPE FROM "
+                            + database + ".INFORMATION_SCHEMA.COLUMNS WHERE table_name = \"" + table + "\";";
+                    break;
             }
 
             if (StringUtils.isEmpty(query)) {
@@ -274,38 +311,54 @@ public class DBConnection {
         if (dbType.supportsStorageHandler()) {
             query = dbType.getStorageHandler().getRowSampleQuery(table, rowCount, sampleSize);
         } else if (sampleSize == -1) {
-            if (dbType == DbType.MS_ACCESS)
-                query = "SELECT * FROM [" + table + "]";
-            else if (dbType == DbType.SQL_SERVER || dbType == DbType.PDW || dbType == DbType.AZURE)
-                query = "SELECT * FROM [" + table.replaceAll("\\.", "].[") + "]";
-            else
-                query = "SELECT * FROM " + table;
-        } else {
-            if (dbType == DbType.SQL_SERVER || dbType == DbType.AZURE)
-                query = "SELECT * FROM [" + table.replaceAll("\\.", "].[") + "] TABLESAMPLE (" + sampleSize + " ROWS)";
-            else if (dbType == DbType.MYSQL)
-                query = "SELECT * FROM `" + table + "` ORDER BY RAND() LIMIT " + sampleSize;
-            else if (dbType == DbType.PDW)
-                query = "SELECT TOP " + sampleSize + " * FROM [" + table.replaceAll("\\.", "].[") + "] ORDER BY RAND()";
-            else if (dbType == DbType.ORACLE) {
-                if (sampleSize < rowCount) {
-                    double percentage = 100 * sampleSize / (double) rowCount;
-                    if (percentage < 100)
-                        query = "SELECT * FROM " + table + " SAMPLE(" + percentage + ")";
-                } else {
+            switch (dbType) {
+                case MS_ACCESS:
+                    query = "SELECT * FROM [" + table + "]";
+                    break;
+                case SQL_SERVER:
+                case PDW:
+                case AZURE:
+                case AZURE_SYNAPSE:
+                    query = "SELECT * FROM [" + table.replaceAll("\\.", "].[") + "]";
+                    break;
+                default:
                     query = "SELECT * FROM " + table;
-                }
-            } else if (dbType == DbType.POSTGRESQL || dbType == DbType.REDSHIFT) {
-                query = "SELECT * FROM " + table + " ORDER BY RANDOM() LIMIT " + sampleSize;
+                    break;
             }
-            else if (dbType == DbType.MS_ACCESS) {
-                query = "SELECT " + "TOP " + sampleSize + " * FROM [" + table + "]";
-            }
-            else if (dbType == DbType.BIGQUERY) {
-                query = "SELECT * FROM " + table + " ORDER BY RAND() LIMIT " + sampleSize;
+        } else {
+            switch (dbType) {
+                case SQL_SERVER:
+                case AZURE:
+                case AZURE_SYNAPSE:
+                    query = "SELECT * FROM [" + table.replaceAll("\\.", "].[") + "] TABLESAMPLE (" + sampleSize + " ROWS)";
+                    break;
+                case MYSQL:
+                    query = "SELECT * FROM `" + table + "` ORDER BY RAND() LIMIT " + sampleSize;
+                    break;
+                case PDW:
+                    query = "SELECT TOP " + sampleSize + " * FROM [" + table.replaceAll("\\.", "].[") + "] ORDER BY RAND()";
+                    break;
+                case ORACLE:
+                    if (sampleSize < rowCount) {
+                        double percentage = 100 * sampleSize / (double) rowCount;
+                        if (percentage < 100)
+                            query = "SELECT * FROM " + table + " SAMPLE(" + percentage + ")";
+                    } else {
+                        query = "SELECT * FROM " + table;
+                    }
+                    break;
+                case POSTGRESQL:
+                case REDSHIFT:
+                    query = "SELECT * FROM " + table + " ORDER BY RANDOM() LIMIT " + sampleSize;
+                    break;
+                case MS_ACCESS:
+                    query = "SELECT " + "TOP " + sampleSize + " * FROM [" + table + "]";
+                    break;
+                case BIGQUERY:
+                    query = "SELECT * FROM " + table + " ORDER BY RAND() LIMIT " + sampleSize;
+                    break;
             }
         }
-
 
         if (StringUtils.isEmpty(query)) {
             throw new RuntimeException("No query was generated for database type " + dbType.name());
@@ -318,27 +371,43 @@ public class DBConnection {
     private List<String> getTableNamesClassic(String database) {
         List<String> names = new ArrayList<>();
         String query = null;
-        if (dbType == DbType.MYSQL) {
-            query = "SHOW TABLES IN `" + database + "`";
-        } else if (dbType == DbType.SQL_SERVER || dbType == DbType.PDW || dbType == DbType.AZURE) {
-            query = "SELECT CONCAT(schemas.name, '.', tables_views.name) FROM " +
-                    "(SELECT schema_id, name FROM %1$s.sys.tables UNION ALL SELECT schema_id, name FROM %1$s.sys.views) tables_views " +
-                    "INNER JOIN %1$s.sys.schemas ON tables_views.schema_id = schemas.schema_id " +
-                    "ORDER BY schemas.name, tables_views.name";
-            query = String.format(query, database);
-            logger.info(query);
-        } else if (dbType == DbType.ORACLE) {
-            query = "SELECT table_name FROM " +
-                    "(SELECT table_name, owner FROM all_tables UNION ALL SELECT view_name, owner FROM all_views) tables_views " +
-                    "WHERE owner='" + database.toUpperCase() + "'";
-        } else if (dbType == DbType.POSTGRESQL || dbType == DbType.REDSHIFT) {
-            query = "SELECT table_name FROM information_schema.tables WHERE table_schema = '" + database.toLowerCase() + "' ORDER BY table_name";
-        } else if (dbType == DbType.MS_ACCESS) {
-            query = "SELECT Name FROM sys.MSysObjects WHERE (Type=1 OR Type=5) AND Flags=0;";
-        } else if (dbType == DbType.TERADATA) {
-            query = "SELECT TableName from dbc.tables WHERE tablekind IN ('T','V') and databasename='" + database + "'";
-        } else if (dbType == DbType.BIGQUERY) {
-            query = "SELECT table_name from " + database + ".INFORMATION_SCHEMA.TABLES ORDER BY table_name;";
+
+        switch (dbType) {
+            case MYSQL:
+                query = "SHOW TABLES IN `" + database + "`";
+                break;
+            case SQL_SERVER:
+            case PDW:
+            case AZURE:
+                query = "SELECT CONCAT(schemas.name, '.', tables_views.name) FROM " +
+                        "(SELECT schema_id, name FROM %1$s.sys.tables UNION ALL SELECT schema_id, name FROM %1$s.sys.views) tables_views " +
+                        "INNER JOIN %1$s.sys.schemas ON tables_views.schema_id = schemas.schema_id " +
+                        "ORDER BY schemas.name, tables_views.name";
+                query = String.format(query, database);
+                break;
+            case AZURE_SYNAPSE:
+                query = "SELECT schema_name + '.' + table_name FROM sys.tables" +
+                        " WHERE schema_name NOT IN ('sys', 'information_schema') ORDER BY schema_name, table_name";
+                break;
+            case ORACLE:
+                query = "SELECT table_name FROM " +
+                        "(SELECT table_name, owner FROM all_tables UNION ALL SELECT view_name, owner FROM all_views) tables_views " +
+                        "WHERE owner='" + database.toUpperCase() + "'";
+                break;
+            case POSTGRESQL:
+            case REDSHIFT:
+                query = "SELECT table_name FROM information_schema.tables WHERE table_schema = '"
+                        + database.toLowerCase() + "' ORDER BY table_name";
+                break;
+            case MS_ACCESS:
+                query = "SELECT Name FROM sys.MSysObjects WHERE (Type=1 OR Type=5) AND Flags=0;";
+                break;
+            case TERADATA:
+                query = "SELECT TableName from dbc.tables WHERE tablekind IN ('T','V') and databasename='" + database + "'";
+                break;
+            case BIGQUERY:
+                query = "SELECT table_name from " + database + ".INFORMATION_SCHEMA.TABLES ORDER BY table_name;";
+                break;
         }
 
         for (Row row : createQueryResult(query))

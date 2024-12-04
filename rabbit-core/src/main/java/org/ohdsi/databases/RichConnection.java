@@ -99,15 +99,29 @@ public class RichConnection implements Closeable {
 	 */
 	public long getTableSize(String tableName) {
 		QueryResult qr;
+
+		switch (this.dbType) {
+			case AZURE:
+			case AZURE_SYNAPSE:
+				String formattedTableName = tableName.replaceAll("\\.", "].[");
+				qr = this.query("SELECT COUNT_BIG(*) FROM [" + formattedTableName + "];");
+				break;
+			case SQL_SERVER:
+			case PDW:
+				qr = this.query("SELECT COUNT_BIG(*) FROM [" + tableName.replaceAll("\\.", "].[") + "];");
+				break;
+			case MS_ACCESS:
+				qr = this.query("SELECT COUNT(*) FROM [" + tableName + "];");
+				break;
+			case MYSQL:
+				qr = this.query("SELECT COUNT(*) FROM `" + tableName + "`;");
+				break;
+			default:
+				qr = this.query("SELECT COUNT(*) FROM " + tableName + ";");
+				break;
+		}
+
 		long returnVal;
-		if (dbType == DbType.SQL_SERVER || dbType == DbType.PDW || dbType == DbType.AZURE)
-			qr = query("SELECT COUNT_BIG(*) FROM [" + tableName.replaceAll("\\.", "].[") + "];");
-		else if (dbType == DbType.MS_ACCESS)
-			qr = query("SELECT COUNT(*) FROM [" + tableName + "];");
-		else if (dbType == DbType.MYSQL)
-			qr = query("SELECT COUNT(*) FROM `" + tableName + "`;");
-		else
-			qr = query("SELECT COUNT(*) FROM " + tableName + ";");
 		try {
 			returnVal = Long.parseLong(qr.iterator().next().getCells().get(0));
 		} catch (Exception e) {
@@ -288,25 +302,30 @@ public class RichConnection implements Closeable {
 		}
 
 		public String toString() {
-			if (dbType == DbType.MYSQL) {
-				if (isNumeric)
-					return columnNameToSqlName(name) + " int(" + maxLength + ")";
-				else if (maxLength > 255)
-					return columnNameToSqlName(name) + " text";
-				else
-					return columnNameToSqlName(name) + " varchar(255)";
-			} else if (dbType == DbType.SQL_SERVER || dbType == DbType.PDW || dbType == DbType.AZURE) {
-				if (isNumeric) {
-					if (maxLength < 10)
+			switch (dbType) {
+				case MYSQL:
+					if (isNumeric)
 						return columnNameToSqlName(name) + " int";
+					else if (maxLength > 255)
+						return columnNameToSqlName(name) + " text";
 					else
-						return columnNameToSqlName(name) + " bigint";
-				} else if (maxLength > 255)
-					return columnNameToSqlName(name) + " varchar(max)";
-				else
-					return columnNameToSqlName(name) + " varchar(255)";
-			} else
-				throw new RuntimeException("Create table syntax not specified for type " + dbType);
+						return columnNameToSqlName(name) + " varchar(255)";
+				case SQL_SERVER:
+				case PDW:
+				case AZURE:
+				case AZURE_SYNAPSE:
+					if (isNumeric) {
+						if (maxLength < 10)
+							return columnNameToSqlName(name) + " int";
+						else
+							return columnNameToSqlName(name) + " bigint";
+					} else if (maxLength > 255)
+						return columnNameToSqlName(name) + " varchar(max)";
+					else
+						return columnNameToSqlName(name) + " varchar(255)";
+				default:
+					throw new RuntimeException("Create table syntax not specified for type " + dbType);
+			}
 		}
 	}
 }
