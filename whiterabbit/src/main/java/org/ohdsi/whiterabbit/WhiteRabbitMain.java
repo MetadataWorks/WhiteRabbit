@@ -188,7 +188,7 @@ public class WhiteRabbitMain implements ActionListener, PanelsManager {
 							dbSettings.domain = parts[0];
 						}
 					}
-				} else if (dbType == DbType.AZURE || dbType == DbType.AZURE_SYNAPSE) {
+				} else if (dbType == DbType.AZURE) {
 					if (!iniFile.get("USER_NAME").isEmpty()) { // Not using windows authentication
 						String[] parts = iniFile.get("USER_NAME").split("/");
 						if (parts.length == 2) {
