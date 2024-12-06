@@ -329,8 +329,18 @@ public class DBConnection {
             switch (dbType) {
                 case SQL_SERVER:
                 case AZURE:
-                case AZURE_SYNAPSE:
                     query = "SELECT * FROM [" + table.replaceAll("\\.", "].[") + "] TABLESAMPLE (" + sampleSize + " ROWS)";
+                    break;
+                case AZURE_SYNAPSE:
+                    if (rowCount > 0) {
+                        double percentage = 100.0 * sampleSize / (double) rowCount;
+                        if (percentage > 100) {
+                            percentage = 100.0;
+                        }
+                        query = "SELECT * FROM [" + table.replaceAll("\\.", "].[") + "] TABLESAMPLE (" + percentage + " PERCENT)";
+                    } else {
+                        query = "SELECT TOP " + sampleSize + " * FROM [" + table.replaceAll("\\.", "].[") + "] ORDER BY NEWID()";
+                    }
                     break;
                 case MYSQL:
                     query = "SELECT * FROM `" + table + "` ORDER BY RAND() LIMIT " + sampleSize;
@@ -386,8 +396,15 @@ public class DBConnection {
                 query = String.format(query, database);
                 break;
             case AZURE_SYNAPSE:
-                query = "SELECT schema_name + '.' + table_name FROM sys.tables" +
-                        " WHERE schema_name NOT IN ('sys', 'information_schema') ORDER BY schema_name, table_name";
+                query = "SELECT \n" +
+                        "    SCHEMA_NAME(schema_id) + '.' + name AS table_name\n" +
+                        "FROM \n" +
+                        "    sys.objects\n" +
+                        "WHERE \n" +
+                        "    type = 'U'\n" +
+                        "    AND SCHEMA_NAME(schema_id) NOT IN ('sys', 'information_schema')\n" +
+                        "ORDER BY \n" +
+                        "    SCHEMA_NAME(schema_id), name;";
                 break;
             case ORACLE:
                 query = "SELECT table_name FROM " +
