@@ -1,14 +1,14 @@
 /*******************************************************************************
  * Copyright 2019 Observational Health Data Sciences and Informatics
- * 
+ *
  * This file is part of WhiteRabbit
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -42,24 +42,29 @@ public class DBConnector {
 
 	// If dbType.BIGQUERY: domain field has been replaced with  database field
 	private static DBConnection connect(String server, String domain, String user, String password, DbType dbType, boolean verbose) {
-		if (dbType.equalsDbType(DbType.MYSQL))
-			return new DBConnection(DBConnector.connectToMySQL(server, user, password), dbType, verbose);
-		else if (dbType.equalsDbType(DbType.SQL_SERVER) || dbType.equalsDbType(DbType.PDW) || dbType.equalsDbType(DbType.AZURE))
-			return new DBConnection(DBConnector.connectToMSSQL(server, domain, user, password), dbType, verbose);
-		else if (dbType.equalsDbType(DbType.ORACLE))
-			return new DBConnection(DBConnector.connectToOracle(server, domain, user, password), dbType, verbose);
-		else if (dbType.equalsDbType(DbType.POSTGRESQL))
-			return new DBConnection(DBConnector.connectToPostgreSQL(server, user, password), dbType, verbose);
-		else if (dbType.equalsDbType(DbType.MS_ACCESS))
-			return new DBConnection(DBConnector.connectToMsAccess(server, user, password), dbType, verbose);
-		else if (dbType.equalsDbType(DbType.REDSHIFT))
-			return new DBConnection(DBConnector.connectToRedshift(server, user, password), dbType, verbose);
-		else if (dbType.equalsDbType(DbType.TERADATA))
-			return new DBConnection(DBConnector.connectToTeradata(server, user, password), dbType, verbose);
-		else if (dbType.equalsDbType(DbType.BIGQUERY))
-			return new DBConnection(DBConnector.connectToBigQuery(server, domain, user, password), dbType, verbose);
-		else
-			return null;
+		switch (dbType) {
+			case MYSQL:
+				return new DBConnection(DBConnector.connectToMySQL(server, user, password), dbType, verbose);
+			case SQL_SERVER:
+			case PDW:
+			case AZURE:
+			case AZURE_SYNAPSE:
+				return new DBConnection(DBConnector.connectToMSSQL(server, domain, user, password), dbType, verbose);
+			case ORACLE:
+				return new DBConnection(DBConnector.connectToOracle(server, domain, user, password), dbType, verbose);
+			case POSTGRESQL:
+				return new DBConnection(DBConnector.connectToPostgreSQL(server, user, password), dbType, verbose);
+			case MS_ACCESS:
+				return new DBConnection(DBConnector.connectToMsAccess(server, user, password), dbType, verbose);
+			case REDSHIFT:
+				return new DBConnection(DBConnector.connectToRedshift(server, user, password), dbType, verbose);
+			case TERADATA:
+				return new DBConnection(DBConnector.connectToTeradata(server, user, password), dbType, verbose);
+			case BIGQUERY:
+				return new DBConnection(DBConnector.connectToBigQuery(server, domain, user, password), dbType, verbose);
+			default:
+				return null;
+		}
 	}
 
 	public static Connection connectToTeradata(String server, String user, String password) {
@@ -184,9 +189,9 @@ public class DBConnector {
 	 * Class.forName("net.sourceforge.jtds.jdbc.Driver");
 	 * 
 	 * } catch (ClassNotFoundException e1) { throw new RuntimeException("Cannot find JDBC driver. Make sure the file sqljdbc4.jar is in the path"); }
-	 * 
+	 *
 	 * String url = "jdbc:jtds:sqlserver://"+server+(domain.length()==0?"":";domain="+domain);
-	 * 
+	 *
 	 * try { return DriverManager.getConnection(url,user, password); } catch (SQLException e1) { throw new RuntimeException("Cannot connect to DB server: " +
 	 * e1.getMessage()); } }
 	 */
